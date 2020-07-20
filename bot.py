@@ -22,7 +22,7 @@ def default_handler(update: Update, context: CallbackContext):
     pprint("default")
     context.bot.send_message(
         chat_id=update.effective_message.chat_id,
-        text='Нажмите /start для заполнения анкеты!'
+        text='Нажмите /start для заполнения анкеты.'
         #reply_markup=ReplyKeyboardRemove()
     )
 
@@ -37,8 +37,8 @@ def start_handler(update: Update, context: CallbackContext):
     reply_markup = ReplyKeyboardMarkup(
         keyboard=[
             [
-                KeyboardButton(text="Отправить номер телефона", request_contact=True),
-                KeyboardButton(text=button_cancel)
+                KeyboardButton(text="Авторизация", request_contact=True),
+                #KeyboardButton(text=button_cancel)
             ],
         ],
         resize_keyboard=True
@@ -58,7 +58,7 @@ def start_handler(update: Update, context: CallbackContext):
 
     context.bot.send_message(
         chat_id=update.effective_message.chat_id,
-        text=f"Здравствуйте {update.message.from_user.first_name} для подтверения подписки подтвердите контактный телефон",
+        text=f"Здравствуйте, {update.message.from_user.first_name}. Для подтверждения подписки отправьте контактный телефон, нажав кнопку \"Авторизация\"",
         reply_markup=reply_markup
     )
 
@@ -69,19 +69,28 @@ def phone_handler(update: Update, context: CallbackContext):
     """ Отправка телефона пользователем """
     pprint("phone")
     # получаем ответ пользователя
-    user_phone = update.message.contact.phone_number
-    user_chat_id = update.message.contact.user_id
+    text = update.message.text
 
-    # отправляем запрос на сервер
-    try:
-        response = requests.post(bot_config.URL, data={'phone': user_phone, 'chat_id': user_chat_id}).json()
-        if response["status"] == 200:
-            text_to_user = "Запрос на подписку прошел успешно"
-        else:
-            text_to_user = "Пользователя с таким телефоном не найдено. За дополнительной информацией, обратитесь к админу"
-        pprint(response)
-    except requests.exceptions.HTTPError as e:
-        text_to_user = f"Запрос на подписку прошел не успешно. Возможные ошибки {e.strerror}"
+    if text is not None:
+        context.bot.send_message(
+            chat_id=update.effective_message.chat_id,
+            text="Для авторизации нажмите кнопку \"Авторизация\"",
+        )
+        return PHONE
+    else:
+        user_phone = update.message.contact.phone_number
+        user_chat_id = update.message.contact.user_id
+
+        # отправляем запрос на сервер
+        try:
+            response = requests.post(bot_config.URL, data={'phone': user_phone, 'chat_id': user_chat_id}).json()
+            if response["status"] == 200:
+                text_to_user = "Запрос на подписку прошел успешно"
+            else:
+                text_to_user = "Пользователь с таким телефоном не найден. За дополнительной информацией обратитесь к администратору."
+
+        except requests.exceptions.HTTPError as e:
+            text_to_user = f"Запрос на подписку прошел не успешно. Возможные ошибки {e.strerror}"
 
     context.bot.send_message(
         chat_id=update.effective_message.chat_id,
@@ -92,20 +101,20 @@ def phone_handler(update: Update, context: CallbackContext):
     return ConversationHandler.END
 
 
-def finish_handler(update: Update, context: CallbackContext):
-    """ сообытие после отправки контакта """
-    context.user_data[PHONE] = update.message.text
-    pprint("finish")
-    pprint(context.user_data[PHONE])
-
-    context.bot.send_message(
-        chat_id=update.effective_message.chat_id,
-        text="Ваш контакт отправлен в базу и подписка активирована",
-    )
-
-    return ConversationHandler.END
-
-
+# def finish_handler(update: Update, context: CallbackContext):
+#     """ сообытие после отправки контакта """
+#     context.user_data[PHONE] = update.message.text
+#     pprint("finish")
+#     pprint(context.user_data[PHONE])
+#
+#     context.bot.send_message(
+#         chat_id=update.effective_message.chat_id,
+#         text="Ваш контакт отправлен в базу и подписка активирована",
+#     )
+#
+#     return ConversationHandler.END
+#
+#
 def cancel_handler(update: Update, context: CallbackContext):
     """ Отменить весь процесс диалога. Данные будут утеряны """
     pprint("cancel")
